@@ -9,7 +9,7 @@ pip install -r requirements.txt
 ## Lancement
 
 ```bash
-streamlit run src/alba2nwpublisher/app.py
+streamlit run src/app.py
 ```
 
 ## Tests
