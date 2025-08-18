@@ -1,0 +1,22 @@
+[project]
+name = "alba-to-nwpublisher"
+version = "0.1.0"
+description = "Convertisseur Alba vers NW Publisher"
+authors = [{name = "Anthony Misse", email ="anthonymisse85@gmail.com"}]
+readme = "README.md"
+requires-python = ">=3.8"
+
+[project.dependencies]
+streamlit = "*"
+pandas = "*"
+openpyxl = "*"
+pyxlsb = "*"
+odfpy = "*"
+pytest = "*"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
