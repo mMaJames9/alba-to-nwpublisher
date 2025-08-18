@@ -1,7 +1,7 @@
 """
 Streamlit app for Alba2NWP
 
-Fichier: src/alba2nwp/app.py
+Fichier: src/app.py
 But: cette interface est volontairement simple — upload d'un fichier Excel/ODS/XLSB/CSV,
 visualisation, conversion en CSV (UTF-8 with BOM) et téléchargement.
 
@@ -12,7 +12,7 @@ Dépendances minimales:
 - pyxlsb (si vous voulez lire .xlsb)
 - odfpy (si vous voulez lire .ods)
 
-Lancer: `streamlit run src/alba2nwp/app.py`
+Lancer: `streamlit run src/app.py`
 """
 
 from pathlib import Path
