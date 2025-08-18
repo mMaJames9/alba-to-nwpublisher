@@ -15,7 +15,7 @@ from typing import Dict, Optional, Any, List
 
 import pandas as pd
 
-from src.alba2nwpublisher.utils import _build_col_map, _format_phone_to_north_american, _get_col, _get_extension, _norm_col_name, _parse_address_field, _title_case_safe
+from .utils import _build_col_map, _format_phone_to_north_american, _get_col, _get_extension, _norm_col_name, _parse_address_field, _title_case_safe
 
 # ------------------------------------------------------------------
 # Colonnes attendues (originales) et colonnes cibles (transformées)
