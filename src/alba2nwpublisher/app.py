@@ -16,7 +16,6 @@ Lancer: `streamlit run src/alba2nwp/app.py`
 """
 
 from pathlib import Path
-import io
 import streamlit as st
 import pandas as pd
 
