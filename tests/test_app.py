@@ -2,7 +2,7 @@ import io
 import pandas as pd
 import pytest
 from unittest.mock import patch, MagicMock
-from src.alba2nwpublisher.app import get_extension, df_to_bytes_csv, read_workbook
+from app import get_extension, df_to_bytes_csv, read_workbook
 
 # Python
 
