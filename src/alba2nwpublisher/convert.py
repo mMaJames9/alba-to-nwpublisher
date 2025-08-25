@@ -89,6 +89,7 @@ def transform_to_nwp(df: pd.DataFrame) -> pd.DataFrame:
     col_Name = _get_col(d, "Name")
     col_Telephone = _get_col(d, "Telephone")
     col_Language = _get_col(d, "Language")
+    col_Status = _get_col(d, "Status")
     col_Lat = _get_col(d, "Latitude")
     col_Lon = _get_col(d, "Longitude")
     col_Notes = _get_col(d, "Notes")
@@ -122,7 +123,7 @@ def transform_to_nwp(df: pd.DataFrame) -> pd.DataFrame:
     out['Name'] = d[col_Name] if col_Name else None
     out['Phone'] = d['_NWP_Phone'] if col_Telephone else None
     out['Type'] = None
-    out['Status'] = None
+    out['Status'] = d[col_Status] if col_Status else None
     out['NotHomeAttempt'] = None
     out['Date1'] = None
     out['Date2'] = None

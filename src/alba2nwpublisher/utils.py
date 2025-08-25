@@ -39,29 +39,42 @@ def _get_extension(filename: str) -> str:
 def _parse_address_field(addr: Any) -> Tuple[Optional[str], Optional[str]]:
     """
     Sépare numéro et nom de la rue.
-    Accepts: '142 Marrissa Ave.', '12A-14 Main St', 'No number', etc.
-    Returns: (number_or_None, street_or_None)
+    - Accepte: '142 Marrissa Ave.', '12A-14 Main St', 'No number', etc.
+    - Retourne: (number_or_None, street_or_None)
+    - Le numéro de rue est toujours normalisé sans décimales.
     """
     if pd.isna(addr):
         return None, None
+
     s = str(addr).strip()
-    # try leading number (may include letters or dash/slash)
+
+    # Corrige le cas Excel/CSV: 142.0 → 142
+    if re.match(r'^\d+\.0$', s):
+        s = s[:-2]
+
+    # Détection du numéro en tête
     m = re.match(r'^\s*([0-9]+[A-Za-z0-9\-\/]*)\s+(.*)$', s)
     if m:
         number = m.group(1).strip()
         street = m.group(2).strip().rstrip('.')
+
+        # Si le numéro est un float déguisé → on force en entier
+        if re.match(r'^\d+(\.0+)?$', number):
+            number = str(int(float(number)))
+
         return number, street
-    # no leading number: return None as number and full string as street
+
+    # Pas de numéro en tête → retourne tout comme rue
     return None, s.rstrip('.')
 
 
 def _format_phone_to_north_american(phone_text: Any) -> Optional[str]:
     """
-    Formate un numéro en +1 (AAA) PPP-SSSS uniquement si c'est clairement un NANP.
+    Formate un numéro nord-américain (NANP) en AAA-PPP-SSSS.
     - 10 chiffres -> formaté
     - 11 chiffres débutant par '1' -> on retire le 1, formaté
     - commence par '+' -> renvoyé tel quel (international)
-    - sinon -> renvoyé inchangé (conformité stricte)
+    - sinon -> renvoyé inchangé
     """
     if phone_text is None or (isinstance(phone_text, float) and pd.isna(phone_text)) or pd.isna(phone_text):
         return None
@@ -72,27 +85,106 @@ def _format_phone_to_north_american(phone_text: Any) -> Optional[str]:
     else:
         s = str(phone_text).strip()
 
-    # Numéro international explicite
+    # Numéro international explicite → ne pas reformater
     if s.startswith('+'):
         return s
 
     digits = re.sub(r"\D+", "", s)
 
     if len(digits) == 10:
-        return f"+1 ({digits[0:3]}) {digits[3:6]}-{digits[6:10]}"
+        return f"{digits[0:3]}-{digits[3:6]}-{digits[6:10]}"
 
     if len(digits) == 11 and digits[0] == '1':
         d = digits[1:]
-        return f"+1 ({d[0:3]}) {d[3:6]}-{d[6:10]}"
+        return f"{d[0:3]}-{d[3:6]}-{d[6:10]}"
 
     return s if s else None
 
 
 def _title_case_safe(x: Any) -> Any:
-    """Met la première lettre de chaque mot en majuscule pour une chaîne."""
-    if pd.isna(x):
+    """
+    Capitalisation "smart" :
+      - conserve les acronymes (tout en majuscule, longueur <= 3 ou origine en MAJUSCULES)
+      - gère les apostrophes (Hunter's -> Hunter's ; O'NEIL -> O'Neil)
+      - gère les séparateurs '-', '/' (North-West -> North-West)
+      - laisse les valeurs non-string inchangées (sauf NaN)
+    """
+
+    if x is None or (isinstance(x, float) and pd.isna(x)) or pd.isna(x):
         return x
-    if isinstance(x, str):
-        # .title() is simple and matches the user's request
-        return x.title()
-    return x
+
+    if not isinstance(x, str):
+        # si c'est un nombre (ex: 123) on le retourne tel quel
+        return x
+
+    s = x.strip()
+    if s == "":
+        return s
+
+    # helper : capitaliser un segment (hors séparateurs)
+    def cap_segment(seg: str) -> str:
+        # si c'était un acronyme en entrée (tout en majuscules et 2-3 lettres), on garde
+        if seg.isupper() and len(seg) <= 3:
+            return seg
+        # si le segment est tout en majuscules et >3 lettres (ex: NASA) on conserve aussi
+        if seg.isupper():
+            return seg
+        # sinon on capitalise première lettre et on met le reste en minuscules
+        # (gère "mcDonald" mal — mais couvre la plupart des cas)
+        return seg[:1].upper() + seg[1:].lower() if seg else seg
+
+    # traiter token par token (garder les espaces tels quels)
+    tokens = re.split(r'(\s+)', s)
+
+    out_tokens = []
+    for token in tokens:
+        if token.isspace():
+            out_tokens.append(token)
+            continue
+
+        # gérer les apostrophes, en conservant le séparateur et traitant la partie après correctement
+        parts = re.split(r"(')", token)  # conserve l'apostrophe comme élément
+        rebuilt_parts = []
+        i = 0
+        while i < len(parts):
+            part = parts[i]
+            if part == "'":
+                # si apostrophe, regarder la partie suivante si elle existe
+                next_part = parts[i+1] if i+1 < len(parts) else ""
+                if next_part.lower() == 's':
+                    # possessif : 's (toujours minuscule s)
+                    rebuilt_parts.append("'s")
+                    i += 2
+                    continue
+                else:
+                    # autre apostrophe (p.ex. O'neill) : on capitalise la partie suivante
+                    if next_part:
+                        # traiter next_part avec séparateurs -/
+                        subparts = re.split(r'([-/])', next_part)
+                        cap_sub = ''.join(cap_segment(sp) if sp not in "-/" else sp for sp in subparts)
+                        rebuilt_parts.append("'" + cap_sub)
+                        i += 2
+                        continue
+                    else:
+                        rebuilt_parts.append("'")
+                        i += 1
+                        continue
+            else:
+                # pas une apostrophe ; traiter les sous-séparateurs '-' et '/'
+                subparts = re.split(r'([-/])', part)
+                cap_subs = []
+                for sp in subparts:
+                    if sp in "-/":
+                        cap_subs.append(sp)
+                    else:
+                        # si segment initial était tout en majuscule et court => acronyme
+                        if sp.isupper() and len(sp) <= 3:
+                            cap_subs.append(sp)
+                        else:
+                            cap_subs.append(cap_segment(sp))
+                rebuilt_parts.append(''.join(cap_subs))
+                i += 1
+
+        out_tokens.append(''.join(rebuilt_parts))
+
+    return ''.join(out_tokens)
